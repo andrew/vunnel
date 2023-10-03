@@ -154,6 +154,15 @@ class TestAlpineProvider:
                 "CVE-2016-9401",
             ],
         )
+        for (key, value) in vuln_records.items():
+            assert "Vulnerability" in value
+            vuln = value["Vulnerability"]
+            assert vuln["Name"] == key
+            assert ":" in vuln["NamespaceName"]
+            assert vuln["Link"] == "http://cve.mitre.org/cgi-bin/cvename.cgi?name=" + str(key)
+            assert vuln["Severity"] == "Unknown"
+
+
 
     @pytest.mark.parametrize(
         ("content", "expected"),
