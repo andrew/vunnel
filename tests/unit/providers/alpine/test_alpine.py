@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from unittest.mock import MagicMock
 
 import pytest
 from vunnel import result, workspace
@@ -229,3 +230,58 @@ def test_provider_schema(helpers, disable_get_requests, monkeypatch):
 
     assert workspace.num_result_entries() == 16
     assert workspace.result_schemas_valid(require_entries=True)
+
+def test_download(helpers, disable_get_requests, monkeypatch):
+    workspace = helpers.provider_workspace_helper(name=Provider.name())
+
+    c = Config()
+    c.runtime.result_store = result.StoreStrategy.FLAT_FILE
+    p = Provider(
+        root=workspace.root,
+        config=c,
+    )
+    mock_data_path = helpers.local_dir("test-fixtures")
+    response_text = ""
+    with open(os.path.join(mock_data_path, "secdb_index_mock.html")) as FH:
+        response_text = FH.read()
+    fake_metadata = MagicMock()
+    fake_metadata.text = response_text
+    def mock_download_metadata():
+        return fake_metadata
+    monkeypatch.setattr(p.parser, "_download_metadata_url", mock_download_metadata)
+    fake_client = MagicMock()
+    fake_response = MagicMock()
+    fake_response.iter_content = MagicMock(return_value=[])
+    fake_client.get = MagicMock(return_value=fake_response)
+    def mock_download_url(url):
+        return fake_client.get(url)
+    monkeypatch.setattr(p.parser, "_download_url", mock_download_url)
+    p.parser._download()
+    expected_download_host = "https://secdb.alpinelinux.org"
+    expected_download_versions = [
+                "edge",
+                "v3.10",
+                "v3.11",
+                "v3.12",
+                "v3.13",
+                "v3.14",
+                "v3.15",
+                "v3.16",
+                "v3.17",
+                "v3.18",
+                "v3.2",
+                "v3.3",
+                "v3.4",
+                "v3.5",
+                "v3.6",
+                "v3.7",
+                "v3.8",
+                "v3.9",
+    ]
+    assert len(fake_client.get.call_args_list) == 35, "extra downloads made"
+    for version in expected_download_versions:
+        must_get = [f"{expected_download_host}/{version}/main.yaml"]
+        if version not in ["v3.2", "edge"]:
+            must_get.append(f"{expected_download_host}/{version}/community.yaml")
+        for url in must_get:
+            fake_client.get.assert_any_call(url)

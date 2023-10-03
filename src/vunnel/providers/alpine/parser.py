@@ -111,6 +111,8 @@ class Parser:
         for link in links:
             if link not in ignore_links:
                 try:
+                    # TODO: if exception is raised on first db type,
+                    # second db type will never be called
                     rel = link.strip("/")
                     rel_dir = os.path.join(self.secdb_dir_path, rel)
                     os.makedirs(rel_dir, exist_ok=True)
